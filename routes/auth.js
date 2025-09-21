@@ -5,6 +5,7 @@ const User = require("../models/User");
 const { sendOtp } = require("../controler/mailer"); // use destructuring
 const Otp = require("../models/otpModel");
 const verifyCaptcha = require("../controler/cap");
+const authMiddleware = require("../controler/Auth"); // import middleware
 
 
 
@@ -71,10 +72,26 @@ router.post("/verify-otp", async (req, res) => {
   await Otp.deleteOne({ _id: record._id });
   
   // create JWT for login
-  const userr = '68cd73a82d3cce4454f62e9b'
-  const token = jwt.sign({ id: userr }, process.env.JWT_SECRET, { expiresIn: "1h" });
+ const user = await User.findOne({ email });
+const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-    res.json({ success: true, message: "OTP verified successfully", token });
+// Store JWT in HTTP-only cookie
+res.cookie("authToken", token, {
+  httpOnly: true,   // cannot be accessed via JS (XSS protection)
+  secure: process.env.NODE_ENV === "production", // only HTTPS in prod
+  sameSite: "strict" // prevent CSRF
 });
+
+// Optionally, still send a response (but not the token)
+res.json({ success: true, message: "OTP verified successfully" });
+});
+
+
+
+// Route for frontend check
+router.get("/check", authMiddleware, (req, res) => {
+  res.json({ authenticated: true, user: req.user });
+});
+
 
 module.exports = router;
