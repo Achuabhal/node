@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Gallery = require('../models/content'); // adjust path
 const News = require('../models/news'); // adjust path
+const Toggle = require('../models/button'); // adjust path
+
 
 
 // PUT /gallery
@@ -59,5 +61,46 @@ router.put('/news', async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+router.get('/all-content', async (req, res) => {
+  try {
+    // Fetch both from DB
+    const newsDoc = await News.findOne();      // since you keep all newsItems in one doc
+    const galleryDoc = await Gallery.findOne(); // same for galleryImages
+    let toggle = await Toggle.findOne();
+
+    res.json({
+      newsItems: newsDoc ? newsDoc.newsItems : [],
+      galleryImages: galleryDoc ? galleryDoc.galleryImages : [],
+      toggle: toggle ? toggle.isActive : false
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error fetching content' });
+  }
+});
+
+
+
+// Update state
+router.put('/toggle', async (req, res) => {
+  try {
+    const { isActive } = req.body; // { isActive: true/false }
+
+    let toggle = await Toggle.findOne();
+    if (!toggle) {
+      toggle = new Toggle({ isActive });
+    } else {
+      toggle.isActive = isActive;
+    }
+    await toggle.save();
+
+    res.json({ isActive: toggle.isActive });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 
 module.exports = router;
