@@ -4,8 +4,6 @@ const Gallery = require('../models/content'); // adjust path
 const News = require('../models/news'); // adjust path
 const Toggle = require('../models/button'); // adjust path
 
-
-
 // PUT /gallery
 router.put('/gallery', async (req, res) => {
   try {
