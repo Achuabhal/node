@@ -10,10 +10,27 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-// 🔹 Enable CORS for all routes
+// 🔹 Enable permissive CORS in development: echo request origin and allow credentials
 app.use(cors({
-  credentials: true
+  origin: true, // echo the request origin instead of '*'
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  optionsSuccessStatus: 204,
 }));
+
+// Note: Preflight will be handled by the CORS middleware above
+
+// Basic healthcheck route to verify server is running
+app.get("/health", (req, res) => res.json({ ok: true }));
+
+// Prevent crashes on unexpected errors (log and continue)
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
 app.use(cookieParser()); // 🔹 parse cookies
 
 

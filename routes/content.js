@@ -9,10 +9,16 @@ const Galleryy = require('../models/img'); // adjust path
 // PUT /gallery
 router.put('/gallery', async (req, res) => {
   try {
+    console.log('[content] PUT /gallery incoming body:', JSON.stringify(req.body));
     const galleryImages = req.body.galleryImages; // frontend sends { galleryImages: [...] }
 
     if (!Array.isArray(galleryImages)) {
       return res.status(400).json({ error: "galleryImages must be an array" });
+    }
+
+    console.log('[content] PUT /gallery items count:', galleryImages.length);
+    if (galleryImages.length > 0) {
+      console.log('[content] First item sample:', galleryImages[0]);
     }
 
     // Replace the array in the first document
@@ -25,10 +31,10 @@ router.put('/gallery', async (req, res) => {
       gallery = new Gallery({ galleryImages });
       await gallery.save();
     }
-
+    console.log('[content] PUT /gallery saved. docId:', gallery._id?.toString(), 'count:', Array.isArray(gallery.galleryImages) ? gallery.galleryImages.length : 0);
     res.json({ message: "Gallery updated successfully", gallery });
   } catch (err) {
-    console.error(err);
+    console.error('[content] PUT /gallery error:', err);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -46,8 +52,8 @@ router.put('/news', async (req, res) => {
     let newsDoc = await News.findOne();
 
     if (newsDoc) {
-      // Replace the array
-      newsDoc.newsItems = newsItems;
+      // Append new items to existing ones instead of replacing
+      newsDoc.newsItems = [...(newsDoc.newsItems || []), ...newsItems];
       await newsDoc.save();
     } else {
       // Create new document if none exists
@@ -59,6 +65,47 @@ router.put('/news', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /news - return all news items
+router.get('/news', async (req, res) => {
+  try {
+    console.log('[content] GET /news');
+    const newsDoc = await News.findOne();
+    const items = newsDoc ? newsDoc.newsItems : [];
+    console.log('[content] GET /news count:', Array.isArray(items) ? items.length : 0);
+    res.json({ newsItems: items });
+  } catch (err) {
+    console.error('[content] GET /news error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /news/:id - return a single news item by its subdocument _id
+router.get('/news/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('[content] GET /news/:id', id);
+    const newsDoc = await News.findOne();
+    if (!newsDoc || !Array.isArray(newsDoc.newsItems)) {
+      return res.status(404).json({ message: 'No news found' });
+    }
+    const item = newsDoc.newsItems.find((n) => {
+      try {
+        // Support both ObjectId subdocs and plain string ids
+        return (n && (n._id?.toString?.() === id || n.id === id));
+      } catch {
+        return false;
+      }
+    });
+    if (!item) {
+      return res.status(404).json({ message: 'News item not found' });
+    }
+    return res.json(item);
+  } catch (err) {
+    console.error('[content] GET /news/:id error:', err);
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -106,15 +153,21 @@ router.put('/toggle', async (req, res) => {
 
 router.get('/gallery', async (req, res) => {
   try {
-    let gallery = await Galleryy.findOne(); // only one gallery document
+    console.log('[content] GET /gallery');
+    // Use the same Gallery model as PUT /gallery for consistency
+    let gallery = await Gallery.findOne();
     if (!gallery) {
-      // If not exist, create one
-      gallery = new Galleryy({ images: [] });
+      gallery = new Gallery({ galleryImages: [] });
       await gallery.save();
     }
-    res.json(gallery);
+    const count = Array.isArray(gallery.galleryImages) ? gallery.galleryImages.length : 0;
+    console.log('[content] GET /gallery docId:', gallery._id?.toString(), 'count:', count);
+    if (count > 0) {
+      console.log('[content] GET /gallery first item sample:', gallery.galleryImages[0]);
+    }
+    res.json({ galleryImages: gallery.galleryImages, _id: gallery._id });
   } catch (err) {
-    console.error(err);
+    console.error('[content] GET /gallery error:', err);
     res.status(500).json({ message: 'Server Error' });
   }
 });
@@ -122,6 +175,7 @@ router.get('/gallery', async (req, res) => {
 
 router.put('/banner', async (req, res) => {
   try {
+    console.log('[content] PUT /banner incoming body:', req.body);
     const { images } = req.body; // frontend sends { images: [...] }
 
     if (!Array.isArray(images)) {
@@ -136,9 +190,10 @@ router.put('/banner', async (req, res) => {
     }
 
     await gallery.save();
+    console.log('[content] PUT /banner saved images count:', Array.isArray(gallery.images) ? gallery.images.length : 0);
     res.json(gallery);
   } catch (err) {
-    console.error(err);
+    console.error('[content] PUT /banner error:', err);
     res.status(500).json({ message: 'Server Error' });
   }
 });
