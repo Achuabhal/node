@@ -20,15 +20,13 @@ router.post("/login", async (req, res) => {
     return res.status(400).json({ message: "Invalid reCAPTCHA" });
     
   }
-     const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(400).json({ message: "Invalid email or password" });
-    }
+   
  
   try {
 
      const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "Invalid email or password" });
+    
 
     
     // Generate OTP
@@ -107,11 +105,12 @@ router.get("/check", authMiddleware, (req, res) => {
 
 
 router.get("/logout", (req, res) => {
+  console.log("Logout request received");
   // Clear the cookie
   res.clearCookie("authToken", {
     httpOnly: true,
     secure: false,   // set to true if using HTTPS
-    sameSite: "none" // adjust based on your frontend
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Use "lax" for local dev
   });
 
   res.json({ message: "Logged out successfully" });
