@@ -9,6 +9,7 @@ const authMiddleware = require("../controler/Auth"); // import middleware
 
 
 
+
 router.post("/login", async (req, res) => {
  
   const { email, password, captchaToken } = req.body;
@@ -19,6 +20,10 @@ router.post("/login", async (req, res) => {
     return res.status(400).json({ message: "Invalid reCAPTCHA" });
     
   }
+     const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
  
   try {
 
@@ -35,6 +40,7 @@ router.post("/login", async (req, res) => {
     // Save OTP to MongoDB
     try {
       await Otp.create({ email, otp, expireAt });
+      console.log("Saved OTP to DB for email:", email);
     } catch (dbErr) {
       console.error("Error saving OTP to DB:", dbErr);
       return res.status(500).json({ message: "Failed to save OTP" });
@@ -73,17 +79,23 @@ router.post("/verify-otp", async (req, res) => {
   
   // create JWT for login
  const user = await User.findOne({ email });
-const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+const token = jwt.sign(
+  { id: user._id, email: user.email }, 
+  process.env.JWT_SECRET, 
+  { expiresIn: "1h" }
+);
+
 
 // Store JWT in HTTP-only cookie
 res.cookie("authToken", token, {
-  httpOnly: true,   // cannot be accessed via JS (XSS protection)
-  secure: process.env.NODE_ENV === "production", // only HTTPS in prod
-  sameSite: "strict" // prevent CSRF
+  httpOnly: true,
+  secure: true, // Always true if using SameSite: None
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Use "lax" for local dev
+  maxAge: 24 * 60 * 60 * 1000 // Optional: Set expiry (e.g., 1 day)
 });
 
-// Optionally, still send a response (but not the token)
-res.json({ success: true, message: "OTP verified successfully" });
+res.json({ success: true, message: "Logged in successfully" });
+
 });
 
 
@@ -93,5 +105,16 @@ router.get("/check", authMiddleware, (req, res) => {
   res.json({ authenticated: true, user: req.user });
 });
 
+
+router.get("/logout", (req, res) => {
+  // Clear the cookie
+  res.clearCookie("authToken", {
+    httpOnly: true,
+    secure: false,   // set to true if using HTTPS
+    sameSite: "none" // adjust based on your frontend
+  });
+
+  res.json({ message: "Logged out successfully" });
+});
 
 module.exports = router;

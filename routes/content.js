@@ -4,10 +4,12 @@ const Gallery = require('../models/content'); // adjust path
 const News = require('../models/news'); // adjust path
 const Toggle = require('../models/button'); // adjust path
 const Galleryy = require('../models/img'); // adjust path
+const authMiddleware = require("../controler/Auth"); // import middleware
+
 
 
 // PUT /gallery
-router.put('/gallery', async (req, res) => {
+router.put('/gallery', authMiddleware, async (req, res) => {
   try {
     console.log('[content] PUT /gallery incoming body:', JSON.stringify(req.body));
     const galleryImages = req.body.galleryImages; // frontend sends { galleryImages: [...] }
@@ -40,7 +42,7 @@ router.put('/gallery', async (req, res) => {
 });
 
 
-router.put('/news', async (req, res) => {
+router.put('/news', authMiddleware, async (req, res) => {
   try {
     const newsItems = req.body.newsItems; // frontend sends { newsItems: [...] }
 
@@ -69,7 +71,7 @@ router.put('/news', async (req, res) => {
 });
 
 // GET /news - return all news items
-router.get('/news', async (req, res) => {
+router.get('/news',authMiddleware, async (req, res) => {
   try {
     console.log('[content] GET /news');
     const newsDoc = await News.findOne();
@@ -83,7 +85,7 @@ router.get('/news', async (req, res) => {
 });
 
 // GET /news/:id - return a single news item by its subdocument _id
-router.get('/news/:id', async (req, res) => {
+router.get('/news/:id', authMiddleware,async (req, res) => {
   try {
     const { id } = req.params;
     console.log('[content] GET /news/:id', id);
@@ -133,7 +135,7 @@ router.get('/all-content', async (req, res) => {
 
 
 // Update state
-router.put('/toggle', async (req, res) => {
+router.put('/toggle',authMiddleware, async (req, res) => {
   try {
     const { isActive } = req.body; // { isActive: true/false }
 
@@ -150,8 +152,28 @@ router.put('/toggle', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// GET route to retrieve the current state
+router.get('/toggle',authMiddleware, async (req, res) => {
+  try {
+    let toggle = await Toggle.findOne();
 
-router.get('/gallery', async (req, res) => {
+    // If not found, create a default one (optional)
+    if (!toggle) {
+      toggle = new Toggle({ isActive: false });
+      await toggle.save();
+    }
+
+    // Determine the message based on isActive
+    const message = toggle.isActive ? "Independence Day" : "Normal Day";
+
+    res.json({ isActive: toggle.isActive, message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+router.get('/gallery',authMiddleware, async (req, res) => {
   try {
     console.log('[content] GET /gallery');
     // Use the same Gallery model as PUT /gallery for consistency
@@ -173,7 +195,7 @@ router.get('/gallery', async (req, res) => {
 });
 
 
-router.put('/banner', async (req, res) => {
+router.put('/banner',authMiddleware, async (req, res) => {
   try {
     console.log('[content] PUT /banner incoming body:', req.body);
     const { images } = req.body; // frontend sends { images: [...] }
